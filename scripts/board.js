@@ -26,4 +26,20 @@ class Board {
 
     return clone;
   }
+
+  valid(p) {
+    return p.shape.every((row, y) => {
+      return row.every(
+        (value, x) => value === 0 || this.isInsideWalls(p.x + x, p.y + y)
+      );
+    });
+  }
+
+  isInsideWalls(x, y) {
+    return (
+      x >= 0 && // Left wall
+      x < COLS && // Right wall
+      y < ROWS // Bottom wall
+    );
+  }
 }
