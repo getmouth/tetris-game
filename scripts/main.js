@@ -1,16 +1,40 @@
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 
+const canvasNext = document.getElementById("next");
+const ctxNext = canvasNext.getContext("2d");
+
 ctx.canvas.width = COLS * BLOCK_SIZE;
 ctx.canvas.height = ROWS * BLOCK_SIZE;
+ctxNext.canvas.width = 8 * BLOCK_SIZE;
+ctxNext.canvas.height = 8 * BLOCK_SIZE;
 
 ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
-let board = new Board(ctx);
+ctxNext.scale(BLOCK_SIZE, BLOCK_SIZE);
+let board = new Board(ctx, ctxNext);
+
+// ========= Score ================
+
+let accountValues = {
+  score: 0,
+  lines: 0,
+  level: 0,
+};
+
+let account = new Proxy(accountValues, {
+  set: (target, key, value) => {
+    target[key] = value;
+    updateAccount(key, value);
+    return true;
+  },
+});
 
 // ========= Methods ================
 let requestId;
 
 function play() {
+  resetGame();
+  // board = new Board(ctx, ctxNext);
   addEventListener();
 
   let piece = new Piece(ctx);
@@ -25,21 +49,39 @@ function play() {
   animate();
 }
 
+function resetGame() {
+  account.score = 0;
+  account.lines = 0;
+  account.level = 0;
+
+  board = new Board(ctx, ctxNext);
+  time = { start: performance.now(), elapsed: 0, level: LEVEL[0] };
+}
+
 function draw() {
   const { width, height } = ctx.canvas;
   ctx.clearRect(0, 0, width, height);
+
+  board.draw();
   board.piece.draw();
 }
 
-function drop() {
-  let p = moves[KEY.DOWN](board.piece);
+function gameOver() {
+  cancelAnimationFrame(requestId);
 
-  if (board.valid(p)) {
-    board.piece.move(p);
-    draw();
-  }
+  ctx.fillStyle = "black";
+  ctx.fillRect(1, 3, 8, 1.2);
+  ctx.font = "1px Arial";
+  ctx.fillStyle = "red";
+  ctx.fillText("GAME OVER", 1.8, 4);
 }
 
+function updateAccount(key, value) {
+  let element = document.getElementById(key);
+  if (element) {
+    element.textContent = value;
+  }
+}
 // ========= Moves ================
 
 const moves = {
@@ -59,12 +101,17 @@ function animate(now = 0) {
 
   if (time.elapsed > time.level) {
     time.start = now;
-    drop();
+
+    if (!board.drop()) {
+      gameOver();
+      return;
+    }
+    // board.drop();
   }
 
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  board.piece.draw();
+  draw();
 
   requestId = requestAnimationFrame(animate);
 }
@@ -85,14 +132,20 @@ function handleKeyPress(evt) {
     if (evt.keyCode === KEY.SPACE) {
       while (board.valid(p)) {
         board.piece.move(p);
+        account.score += POINTS.HARD_DROP;
 
-        p = moves[KEY.SPACE](board.piece);
+        p = moves[KEY.DOWN](board.piece);
+      }
+    } else if (board.valid(p)) {
+      board.piece.move(p);
+
+      if (evt.keyCode === KEY.DOWN) {
+        account.score += POINTS.SOFT_DROP;
       }
     }
 
     if (board.valid(p)) {
       board.piece.move(p);
-      draw();
     }
   }
 }
